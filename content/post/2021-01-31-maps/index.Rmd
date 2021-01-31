@@ -1,0 +1,18 @@
+---
+title: "Maps for HKH"
+author: "Manish Gyawali"
+date: 2021-01-31
+categories: ["R"]
+tags: ["R Markdown", "plot", "regression"]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, warning = FALSE, message = FALSE, echo = FALSE)
+```
+
+# R Markdown
+
+This is a Maps Website
+
+
+
