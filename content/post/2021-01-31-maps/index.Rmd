@@ -1,18 +1,162 @@
 ---
-title: "Maps for HKH"
+title: "Introduction to R Maps"
 author: "Manish Gyawali"
-date: 2021-01-31
+date: 2021-02-01
 categories: ["R"]
-tags: ["R Markdown", "plot", "regression"]
+tags: ["R Markdown", "plot", "regression","maps"]
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(collapse = TRUE, warning = FALSE, message = FALSE, echo = FALSE)
+knitr::opts_chunk$set(
+  collapse = TRUE, message = FALSE, warning = FALSE, 
+  echo = FALSE, comment = NA)
 ```
 
-# R Markdown
+Intro to Maps in R
 
-This is a Maps Website
+This is a photo of a map: 
 
+![Pak Map](/pak_map.png){width=80%}
+
+We see here ICIMOD's location! 
+
+```{r}
+
+library(leaflet)
+library(magrittr)
+
+m = leaflet() %>% addTiles() 
+m %>% 
+  setView(85.32350, 27.64656, zoom = 17) %>% 
+  addPopups(85.32350, 27.64656, "Here is the <b>ICIMOD HQ</b>, Lalitpur") %>%
+  addTiles()
+  
+```
+
+```{r}
+
+# As these files are already in the project, don't run this chunk
+# Run this now. 
+
+
+pak.data = readr::read_csv('~/Datasets/country_data/pakistan/pak_indicators.csv')
+pak.geo = sf::st_read(
+  '~/Datasets/country_data/pakistan/pakistan_districts', quiet = TRUE)
+
+```
+
+```{r}
+# Merging the datasets
+library(dplyr)
+
+# Unique districts in pak.geo and pak.data
+districts = unique(pak.geo[["districts"]]) %>%
+  intersect(unique(pak.data[["District"]]))
+
+# use regexp to find out what variables we want
+poverty.vars = names(pak.data) %>% stringr::str_subset("(p|P)overty")
+
+```
+
+```{r}
+# Creating a dataset with needed and gis variables
+
+pak_geo = pak.geo %>% select(districts,geometry)
+
+```
+
+```{r}
+
+new_data = pak.data %>% select(District,poverty.vars[1])
+join_1 = pak_geo %>% inner_join(new_data, by = c("districts" = "District"))
+pov.rate = join_1[["Poverty Rate (%)"]]
+
+```
+
+
+```{r}
+
+
+library(ggplot2)
+
+ggplot(join_1[["geometry"]]) + 
+  geom_sf(aes(fill = pov.rate)) + 
+  ggtitle('Poverty Rates in Pakistan by District') +
+  theme(plot.title = element_text(hjust = .5)) +
+  guides(fill = guide_legend(title = 'Poverty Rate'))
+
+```
+
+
+
+```{r}
+
+# A Choropleth
+
+pla = colorNumeric(palette = "plasma", domain = join_1$`Poverty Rate (%)`)
+
+labels = sprintf(
+  "<strong>%s</strong><br/>%i",
+  join_1$districts,join_1$`Poverty Rate (%)`
+) %>% purrr::map(htmltools::HTML)
+
+
+join_1 %>% 
+  leaflet() %>%
+  setView(74.3587, 31.5204, zoom = 5) %>% 
+  
+  # Add Polygons
+  addPolygons(
+    weight = 1,
+    fillColor = ~ pla(`Poverty Rate (%)`),
+    dashArray = "3", fillOpacity = 0.3,
+    opacity = 0.5,
+    color = "black",
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      opacity = 0.6,
+      direction = "auto"),
+    highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE)) %>%
+  
+  # Add Provider Tiles
+  addProviderTiles("OpenStreetMap",group = "OpenStreetMap") %>%
+  addProviderTiles("Stamen.Toner", group = "Stamen.Toner") %>%
+  addProviderTiles("Stamen.Terrain", group = "Stamen.Terrain") %>%
+  addProviderTiles("Esri.WorldStreetMap",group = "Esri.WorldStreetMap") %>%
+  addProviderTiles("Wikimedia", group = "Wikimedia") %>%
+  addProviderTiles("CartoDB.Positron",group = "CartoDB.Positron") %>%
+  addProviderTiles("CartoDB.DarkMatter",group = "CartoDB.DarkMatter") %>%
+  addProviderTiles("Esri.WorldImagery", group = "Esri.WorldImagery") %>%
+  
+  # Add Layers Control
+  addLayersControl(
+    baseGroups = c(
+      "OpenStreetMap","Stamen.Toner","Stamen.Terrain",
+      "Esri.WorldStreetMap","Wikimedia","CartoDB.Positron",
+      "CartoDB.DarkMatter","Esri.WorldImagery"
+    ),
+    position = "topleft"
+  ) %>% 
+
+  
+  # Add Legend
+  addLegend("bottomright", pal = pla, 
+            values = ~`Poverty Rate (%)`, 
+            title = "Poverty Rate: <br>Pakistan Districts",
+            opacity = 0.6) 
+  
+  # Add Markers
+  # addMarkers(popup = ~ geometry)
+
+
+  
+```
 
 
